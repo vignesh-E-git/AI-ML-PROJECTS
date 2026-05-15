@@ -92,3 +92,41 @@ def retrieve_tool(query:str) -> str:
     return '\n\n'.join(res)
 
 # 3.CREATE NODE , GRAPH
+
+tools = [retrieve_tool]
+llm = ChatGoogleGenerativeAI(model = 'gemini-2.5-flash').bind_tools(tools=tools)
+
+def process(state:AgentState) -> AgentState:
+    system_prompt = 'you are a instructor . you have given a tool to retrieve information from the provided document . you work is to use the tool and respond from that chunksl. please dont hallucinate or make up.'
+    response = llm.invoke(system_prompt + state['message'])
+    return {'message': response}
+
+
+def should_continue(state : AgentState) -> AgentState:
+    last_msg = state['message'][-1]
+    if not hasattr(last_msg,'tool_calls') or not last_msg.tool_calls:
+        return 'exit'
+    else:
+        return 'tool'
+
+def retriever_agent(): # tool node
+    pass
+
+# 4. node and connect edges
+graph = StateGraph(AgentState)
+
+graph.add_node('process',process)
+graph.add_node('should_continue',lambda state:state)
+graph.add_node('retriever_agent',retriever_agent)
+
+graph.add_edge(START,process)
+graph.add_edge('process','should_continue')
+graph.add_conditional_edges('process',path = should_continue,
+                            path_map= {'tool' : retriever_agent ,
+                                       'exit' : END})
+graph.add_edge('retriever_agent','process')
+
+app = graph.compile()
+app.get_graph().draw_mermaid_png(output_file_path='RAG/main.py')
+
+print('hi')
