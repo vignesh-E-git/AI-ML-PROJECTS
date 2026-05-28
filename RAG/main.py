@@ -34,15 +34,14 @@ def debug_print(message: str) -> None:
 # UNDONE
 
 
-# def respond(query):
-#     msg = query
-#     response = app.invoke({'message' : msg})
-#     return response.content
-#
 # path = ''
 # db = create_db(path)
 
 # embedding_model = GoogleGenerativeAIEmbeddings(model = 'gemini-embedding-2')
+db = None
+def set_up_db(path):
+    global db
+    db = path
 
 # AGENT ARCHITECTURE
 # 1.create agentstate
@@ -50,11 +49,11 @@ class AgentState(TypedDict):
     message : Annotated[Sequence[BaseMessage],add_messages]
 
 #----------helper for testing----------------------
-db_testing = Chroma(
-    collection_name= 'banking',
-    persist_directory = 'C:/VKY/02_SKILLS/LANGHAIN/LEVEL-2/chroma_db' ,
-    embedding_function= GoogleGenerativeAIEmbeddings(model = 'gemini-embedding-2')
-)
+# db = Chroma(
+#     collection_name= 'pdf_data',
+#     persist_directory = db,
+#     embedding_function= GoogleGenerativeAIEmbeddings(model = 'gemini-embedding-2')
+# )
 path_env = r'C:\VKY\02_SKILLS\LANGHAIN\LEVEL-2\.env'
 
 #-------------------------------
@@ -63,7 +62,11 @@ path_env = r'C:\VKY\02_SKILLS\LANGHAIN\LEVEL-2\.env'
 def retrieve_tool(query:str) -> str:
     '''This tool is used to retrieve related information for a given query.'''
     debug_print(f'retrieve_tool called with query: {query}')
-    retriever = db_testing.as_retriever(
+
+    if db is None:
+        return 'vector db is not config.'
+    
+    retriever = db.as_retriever(
         search_type = 'similarity' ,
         search_kwargs = {'k' : 4}
     )
@@ -91,7 +94,8 @@ llm = ChatGoogleGenerativeAI(model = 'gemini-2.5-flash').bind_tools(tools=tools)
 def process(state:AgentState) -> AgentState:
     debug_print(f'Process node started. Message count: {len(state["message"])}')
     system_prompt = 'you are a instructor . you have given a tool to retrieve information from the provided document . you work is to use the tool and respond from that chunksl. please dont hallucinate or make up.'
-    response = llm.invoke([system_prompt] + state['message'])
+    messages = [SystemMessage(content=system_prompt), *state['message']]
+    response = llm.invoke(messages)
     debug_print(f'LLM response received. Tool calls: {len(response.tool_calls) if hasattr(response, "tool_calls") else 0}')
     return {'message': response}
 
@@ -150,8 +154,13 @@ app = graph.compile()
 
 # execute 
 def Agent(query:str)->str:
+
     debug_print(f'Application invocation started with query: {query}')
     result = app.invoke({'message' : [HumanMessage(content = query)]})
     debug_print('Application invocation completed.')
     print('result\n')
-    return result['message'][-1].content[0]['text']
+
+    content = result['message'][-1].content
+    if isinstance(content,str):
+        return content
+    return content[0]['text']

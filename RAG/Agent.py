@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 load_dotenv(r'C:\VKY\02_SKILLS\LANGHAIN\LEVEL-2\.env')
 
 from main import Agent
+from main import set_up_db
 DEBUG = True
 
 def debug_print(message: str) -> None:
@@ -18,7 +19,7 @@ def create_db(path):
 
     # load pdf
     pdf_loader = PyPDFLoader(path)
-    pdf = pdf_loader().load()
+    pdf = pdf_loader.load()
     debug_print(f'PDF loaded successfully. Pages/documents found: {len(pdf)}')
 
     # chunking
@@ -35,7 +36,7 @@ def create_db(path):
     vector_db = Chroma.from_documents(
         embedding=embedding_model ,
         documents= chunks ,
-        persist_directory= 'MY_PROJECTS-main/RAG' ,
+        persist_directory= 'testing/' ,
         collection_name= 'pdf_data'
     )
     debug_print('Vector DB created successfully.')
@@ -47,12 +48,15 @@ print('=====WELCOME TO CLI RAG AGENT======\n\n')
 
 path = input('Enter the pdf path :')
 
-db = create_db(r'{path}')
+db = create_db(path)
 
 
 query = input('Ask you question :')
 while query != 'exit':
-    result = Agent(query)
+    set_up_db(db)
+    result = Agent(query) # rag funtion 
+
+
     print(f'Answer : {result}')
     query = input('Ask you question :')
 
