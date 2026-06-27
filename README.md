@@ -5,4 +5,3 @@
 2. Face Emotion Recognition
 3. RAG agent
 4. AI coding Assitant
-5. Browser Agent
